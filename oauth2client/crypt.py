@@ -186,9 +186,22 @@ try:
         NotImplementedError if is_x509_cert is true.
       """
       if is_x509_cert:
-        raise NotImplementedError(
-            'X509 certs are not supported by the PyCrypto library. '
-            'Try using PyOpenSSL if native code is an option.')
+        from Crypto.Util.asn1 import DerSequence
+        from Crypto.PublicKey import RSA
+        from binascii import a2b_base64
+
+        # Convert from PEM to DER
+        lines = key_pem.replace(" ",'').split()
+        der = a2b_base64(''.join(lines[1:-1]))
+
+        # Extract subjectPublicKeyInfo field from X.509 certificate (see RFC3280)
+        cert = DerSequence()
+        cert.decode(der)
+        tbsCertificate = DerSequence()
+        tbsCertificate.decode(cert[0])
+        subjectPublicKeyInfo = tbsCertificate[6]
+
+        pubkey = RSA.importKey(subjectPublicKeyInfo)
       else:
         pubkey = RSA.importKey(key_pem)
       return PyCryptoVerifier(pubkey)
